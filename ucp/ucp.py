@@ -337,7 +337,7 @@ class Request5x(Message):
 
     def __str__(self):
         oadc = encode_bits7(self.oadc) if self.otoa == '5039' else self.oadc
-        otoa = '' if self.otoa == '5039' else self.otoa
+        otoa = self.otoa
         try:
             self.xmsg.encode('ascii')
         except UnicodeError:
