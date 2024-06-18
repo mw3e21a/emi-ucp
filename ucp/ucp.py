@@ -336,7 +336,10 @@ class Request5x(Message):
         self.xser = xser
 
     def __str__(self):
-        oadc = encode_bits7(self.oadc) if self.otoa == '5039' else self.oadc
+        if self.oadc == 'ORANGE':
+            oadc = '0B4F69D0792C02'
+        else:    
+            oadc = encode_bits7(self.oadc) if self.otoa == '5039' else self.oadc
         otoa = self.otoa
         try:
             self.xmsg.encode('ascii')
