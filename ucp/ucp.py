@@ -338,6 +338,8 @@ class Request5x(Message):
     def __str__(self):
         if self.oadc == 'ORANGE':
             oadc = '0B4F69D0792C02'
+        elif self.oadc == 'Orange':
+            oadc = '0B4F79D87D2E03'
         else:    
             oadc = encode_bits7(self.oadc) if self.otoa == '5039' else self.oadc
         otoa = self.otoa
