@@ -340,12 +340,12 @@ class Request5x(Message):
             oadc = '0B4F69D0792C02'
         elif self.oadc == 'Orange':
             oadc = '0B4F79D87D2E03'
-        elif self.oadc == 'PARENTAL':
-            oadc = '0ED0A0B4E8A40699'
-        elif self.oadc == 'OCHRONA':
-            oadc = '0DCF2152FA740601'
-        elif self.oadc == 'Bezpieczny Internet':
-            oadc = '22C2B21E9E2E8FF5EE3C28E9A697E5EE321D'
+        elif self.oadc == 'Parental':
+            oadc = '0ED0B0BCECA687D9'
+        elif self.oadc == 'Ochrona':
+            oadc = '0DCF315AFE768701'
+        elif self.oadc == 'RodzicAlert':
+            oadc = '14D237599F1E07D965391D'
         else:
             oadc = encode_bits7(self.oadc) if self.otoa == '5039' else self.oadc
         otoa = self.otoa
