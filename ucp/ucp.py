@@ -346,6 +346,12 @@ class Request5x(Message):
             oadc = '0DCF315AFE768701'
         elif self.oadc == 'RodzicAlert':
             oadc = '14D237599F1E07D965391D'
+        elif self.oadc == 'NAW.ORANGE':
+            oadc = '12CEE0D5F594069DC722'
+        elif self.oadc == 'ORANGE.NAWI':
+            oadc = '144F69D0792CBA9CC16B12'
+        elif self.oadc == 'NAWIGACJA.O':
+            oadc = '14CEE035790C0E9541D713'
         else:
             oadc = encode_bits7(self.oadc) if self.otoa == '5039' else self.oadc
         otoa = self.otoa
