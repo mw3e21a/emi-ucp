@@ -352,6 +352,8 @@ class Request5x(Message):
             oadc = '144F69D0792CBA9CC16B12'
         elif self.oadc == 'NAWIGACJA.O':
             oadc = '14CEE035790C0E9541D713'
+        elif self.oadc == 'OchronaAlert':
+            oadc = '15CF315AFE768783ECB29C0E'
         else:
             oadc = encode_bits7(self.oadc) if self.otoa == '5039' else self.oadc
         otoa = self.otoa
