@@ -354,6 +354,10 @@ class Request5x(Message):
             oadc = '14CEE035790C0E9541D713'
         elif self.oadc == 'ChronAlert':
             oadc = '1243B4FCED0EB2CB723A'
+        elif self.oadc == '80200':
+            oadc = '0938980C0603'
+        elif self.oadc == 'CTGo':
+            oadc = '0743EAF10D'
         else:
             oadc = encode_bits7(self.oadc) if self.otoa == '5039' else self.oadc
         otoa = self.otoa
