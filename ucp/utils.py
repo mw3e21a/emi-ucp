@@ -226,6 +226,9 @@ def encode_bits7(text):
     """
     if not text:
         return text
+    # OTOA length field is the number of half-octets (nibbles) of the
+    # 7-bit packed data, derived from the *unpadded* text: ceil(len*7 / 4).
+    nibbles = (len(text) * 7 + 3) // 4
     text += '\x00'
     msgl = len(text) * 7 // 8
     op = [-1] * msgl
@@ -242,7 +245,7 @@ def encode_bits7(text):
         c += 1
 
     result = encode_hex(''.join(map(chr, op)))
-    return encode_hex(chr(len(result))) + result
+    return encode_hex(chr(nibbles)) + result
 
 
 def decode_bits7(text):
