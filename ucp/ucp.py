@@ -336,30 +336,7 @@ class Request5x(Message):
         self.xser = xser
 
     def __str__(self):
-        if self.oadc == 'ORANGE':
-            oadc = '0B4F69D0792C02'
-        elif self.oadc == 'Orange':
-            oadc = '0B4F79D87D2E03'
-        elif self.oadc == 'Parental':
-            oadc = '0ED0B0BCECA687D9'
-        elif self.oadc == 'Ochrona':
-            oadc = '0DCF315AFE768701'
-        elif self.oadc == 'RodzicAlert':
-            oadc = '14D237599F1E07D965391D'
-        elif self.oadc == 'NAW.ORANGE':
-            oadc = '12CEE0D5F594069DC722'
-        elif self.oadc == 'ORANGE.NAWI':
-            oadc = '144F69D0792CBA9CC16B12'
-        elif self.oadc == 'NAWIGACJA.O':
-            oadc = '14CEE035790C0E9541D713'
-        elif self.oadc == 'ChronAlert':
-            oadc = '1243B4FCED0EB2CB723A'
-        elif self.oadc == '80200':
-            oadc = '0938980C0603'
-        elif self.oadc == 'CTGo':
-            oadc = '0743EAF10D'
-        else:
-            oadc = encode_bits7(self.oadc) if self.otoa == '5039' else self.oadc
+        oadc = encode_bits7(self.oadc) if self.otoa == '5039' else self.oadc
         otoa = self.otoa
         try:
             self.xmsg.encode('ascii')
