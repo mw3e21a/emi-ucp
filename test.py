@@ -220,6 +220,71 @@ class TestTransport(unittest.TestCase):
         event.set()
 
 
+class _FakeSocket(object):
+    """Minimal socket stand-in so _Connection._reconnect() never touches the
+    network. connect()/settimeout()/close() are no-ops."""
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def connect(self, address):
+        pass
+
+    def settimeout(self, timeout):
+        pass
+
+    def close(self):
+        pass
+
+
+class TestReconnectHook(unittest.TestCase):
+    """The on_reconnect hook lets a caller re-authenticate the moment the
+    library transparently re-establishes a dropped socket."""
+
+    def setUp(self):
+        from ucp import ucp as ucp_module
+        self._ucp = ucp_module
+        self._real_socket = ucp_module.socket.socket
+        ucp_module.socket.socket = _FakeSocket
+
+    def tearDown(self):
+        self._ucp.socket.socket = self._real_socket
+
+    def _conn(self, on_reconnect=None):
+        return self._ucp.DataTransport._Connection(
+            'localhost', 10000, 1, on_reconnect)
+
+    def test_not_fired_on_initial_connect(self):
+        calls = []
+        self._conn(on_reconnect=lambda: calls.append(1))
+        # The initial connect is not a recovery, so the hook must stay silent.
+        self.assertEqual(calls, [])
+
+    def test_fired_on_each_reconnect(self):
+        calls = []
+        conn = self._conn(on_reconnect=lambda: calls.append(1))
+        conn._reconnect()
+        conn._reconnect()
+        self.assertEqual(calls, [1, 1])
+
+    def test_none_hook_is_safe(self):
+        conn = self._conn(on_reconnect=None)
+        conn._reconnect()  # must not raise
+        self.assertTrue(conn._connected_once)
+
+    def test_callback_exception_does_not_propagate(self):
+        def boom():
+            raise RuntimeError("caller blew up")
+
+        conn = self._conn(on_reconnect=boom)
+        # A misbehaving callback must never kill the worker thread that called
+        # _reconnect(), so the exception is swallowed.
+        try:
+            conn._reconnect()
+        except RuntimeError:
+            self.fail("on_reconnect exception must not propagate")
+
+
 class TestCoders(unittest.TestCase):
     def test_encode(self):
         msg = 'ALPHA@NUM'
