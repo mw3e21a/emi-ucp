@@ -222,10 +222,16 @@ class TestTransport(unittest.TestCase):
 
 class _FakeSocket(object):
     """Minimal socket stand-in so _Connection._reconnect() never touches the
-    network. connect()/settimeout()/close() are no-ops."""
+    network. Records close() so leak tests can assert the old socket was shut.
+
+    Every instance appends itself to the class-level `created` list, so a test
+    can see the order sockets were opened and which ones were closed."""
+
+    created = []
 
     def __init__(self, *args, **kwargs):
-        pass
+        self.closed = False
+        _FakeSocket.created.append(self)
 
     def connect(self, address):
         pass
@@ -234,7 +240,15 @@ class _FakeSocket(object):
         pass
 
     def close(self):
-        pass
+        self.closed = True
+
+
+class _ExplodingCloseSocket(_FakeSocket):
+    """Like _FakeSocket but close() raises socket.error, as a half-broken socket
+    can. The reconnect must swallow it and still open a fresh socket."""
+
+    def close(self):
+        raise socket.error("socket already broken")
 
 
 class TestReconnectHook(unittest.TestCase):
@@ -245,10 +259,12 @@ class TestReconnectHook(unittest.TestCase):
         from ucp import ucp as ucp_module
         self._ucp = ucp_module
         self._real_socket = ucp_module.socket.socket
+        _FakeSocket.created = []
         ucp_module.socket.socket = _FakeSocket
 
     def tearDown(self):
         self._ucp.socket.socket = self._real_socket
+        _FakeSocket.created = []
 
     def _conn(self, on_reconnect=None):
         return self._ucp.DataTransport._Connection(
@@ -283,6 +299,61 @@ class TestReconnectHook(unittest.TestCase):
             conn._reconnect()
         except RuntimeError:
             self.fail("on_reconnect exception must not propagate")
+
+
+class TestReconnectClosesOldSocket(unittest.TestCase):
+    """A reconnect must close the previous socket, otherwise it leaks a file
+    descriptor (lingering in CLOSE_WAIT) on every drop+reconnect."""
+
+    def setUp(self):
+        from ucp import ucp as ucp_module
+        self._ucp = ucp_module
+        self._real_socket = ucp_module.socket.socket
+        _FakeSocket.created = []
+        ucp_module.socket.socket = _FakeSocket
+
+    def tearDown(self):
+        self._ucp.socket.socket = self._real_socket
+        _FakeSocket.created = []
+
+    def _conn(self):
+        return self._ucp.DataTransport._Connection('localhost', 10000, 1)
+
+    def test_initial_connect_opens_one_socket_and_closes_none(self):
+        conn = self._conn()
+        self.assertEqual(len(_FakeSocket.created), 1)
+        self.assertFalse(_FakeSocket.created[0].closed)
+
+    def test_reconnect_closes_previous_socket(self):
+        conn = self._conn()
+        first = conn.socket
+        conn._reconnect()
+        # The first socket is closed; the current one is the freshly opened one.
+        self.assertTrue(first.closed)
+        self.assertIsNot(conn.socket, first)
+        self.assertFalse(conn.socket.closed)
+
+    def test_each_reconnect_closes_exactly_the_prior_socket(self):
+        conn = self._conn()
+        conn._reconnect()
+        conn._reconnect()
+        # 3 sockets opened (initial + 2 reconnects); the first two closed, the
+        # last still open -> no fd leak across reconnects.
+        self.assertEqual(len(_FakeSocket.created), 3)
+        self.assertEqual([s.closed for s in _FakeSocket.created],
+                         [True, True, False])
+
+    def test_failing_close_does_not_block_reconnect(self):
+        self._ucp.socket.socket = _ExplodingCloseSocket
+        conn = self._conn()
+        first = conn.socket
+        # close() on the old socket raises, but the reconnect must still swap in
+        # a new socket rather than propagate the error.
+        try:
+            conn._reconnect()
+        except socket.error:
+            self.fail("a failing close() must not block the reconnect")
+        self.assertIsNot(conn.socket, first)
 
 
 class TestCoders(unittest.TestCase):

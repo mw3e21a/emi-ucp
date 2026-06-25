@@ -512,6 +512,18 @@ class DataTransport(object):
             self._reconnect()
 
         def _reconnect(self):
+            # Close the previous socket before opening a new one. Without this,
+            # a reconnect after the peer aborts leaks the old socket: it lingers
+            # in CLOSE_WAIT with any unread bytes still in its receive buffer,
+            # and the file descriptor is never released until the process exits
+            # -- so every reconnect leaks one fd. Best-effort: the old socket may
+            # already be in a broken state, which must not block the reconnect.
+            old = getattr(self, 'socket', None)
+            if old is not None:
+                try:
+                    old.close()
+                except socket.error:
+                    pass
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect(self.server_address)
             self.socket.settimeout(self.timeout)
