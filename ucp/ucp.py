@@ -429,8 +429,15 @@ class Request6x(Message):
 
 
 class DataTransport(object):
-    def __init__(self, host, port, timeout=3, rcv=None):
-        self.conn = self._Connection(host, port, timeout)
+    def __init__(self, host, port, timeout=3, rcv=None, on_reconnect=None):
+        # on_reconnect: optional zero-arg callable invoked whenever the socket
+        # is transparently re-established after a drop (NOT on the first
+        # connect). The library reconnects the TCP socket on its own when the
+        # peer aborts, but the new socket carries no application-level session
+        # (e.g. no UCP O/60 authentication) -- so a caller that authenticates
+        # needs to know a reconnect happened in order to re-authenticate
+        # immediately, instead of discovering it later via a keepalive timeout.
+        self.conn = self._Connection(host, port, timeout, on_reconnect)
         self.incoming = queue.Queue()
         self.outgoing = queue.Queue()
         self.flag = threading.Event()
@@ -494,15 +501,29 @@ class DataTransport(object):
                         buff = buff[sid:]
 
     class _Connection:
-        def __init__(self, host, port, timeout):
+        def __init__(self, host, port, timeout, on_reconnect=None):
             self.server_address = host, port
             self.timeout = timeout
+            self._on_reconnect = on_reconnect
+            # The first _reconnect() is the initial connect, not a recovery, so
+            # it must NOT fire on_reconnect (there is no prior session to
+            # restore). Every later call is a genuine reconnect after a drop.
+            self._connected_once = False
             self._reconnect()
 
         def _reconnect(self):
             self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             self.socket.connect(self.server_address)
             self.socket.settimeout(self.timeout)
+            if self._connected_once and self._on_reconnect is not None:
+                # Notify the caller that the session is gone. This runs in the
+                # sender/receiver worker thread, so a misbehaving callback must
+                # never kill the thread -- swallow anything it raises.
+                try:
+                    self._on_reconnect()
+                except Exception:
+                    pass
+            self._connected_once = True
 
         def send(self, msg):
             try:

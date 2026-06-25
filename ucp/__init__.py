@@ -4,4 +4,4 @@ from .ucp import STX, ETX, O, R, A, N, SEP, FrameMalformed, Trn, Message, \
 from .utils import encode_ira, decode_ira, encode_hex, decode_hex, \
     encode_irahex, decode_irahex, encode_bits7, decode_bits7
 
-__version__ = '1.0.0'
+__version__ = '1.1.0'
